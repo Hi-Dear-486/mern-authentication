@@ -9,7 +9,7 @@ const ERROR_CODES = {
 };
 
 //   fucntion to create custom error obejct
-const createError = (message, statusCode) => {
+export const createError = (message, statusCode) => {
   const error = new Error(message);
   error.statusCode = statusCode;
 
