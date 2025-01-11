@@ -47,4 +47,4 @@ userSchema.methods.generateVerificationCode = function () {
 
   return verificationCode;
 };
-export const User = mongoose.model("User", userSchema, "user");
+export const User = mongoose.model("User", userSchema);

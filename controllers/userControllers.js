@@ -9,9 +9,11 @@ const client = Twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 export const register = catchAsyncError(async (req, res, next) => {
   try {
     const { name, email, phone, password, verificationMethod } = req.body;
+
     if (!name || !email || !phone || !password || !verificationMethod) {
       return next(new createError("All fields are required.", 400));
     }
+
     function validatePhoneNumber(phone) {
       const phoneRegex = /^\+923\d{9}$/;
       return phoneRegex.test(phone);
@@ -23,14 +25,8 @@ export const register = catchAsyncError(async (req, res, next) => {
 
     const existingUser = await User.findOne({
       $or: [
-        {
-          email,
-          accountVerified: true,
-        },
-        {
-          phone,
-          accountVerified: true,
-        },
+        { email, accountVerified: true },
+        { phone, accountVerified: true },
       ],
     });
 
@@ -54,24 +50,33 @@ export const register = catchAsyncError(async (req, res, next) => {
       );
     }
 
-    const userData = {
-      name,
-      email,
-      phone,
-      password,
-    };
-
+    const userData = { name, email, phone, password };
     const user = await User.create(userData);
-    const verificationCode = await user.generateVerificationCode();
-    await user.save();
-    sendVerificationCode(
+    if (!user) {
+      return next(new createError("Failed to create user", 500));
+    }
+
+    console.log("🚀 ~ register ~ user:", user);
+
+    const verificationCode = user.generateVerificationCode();
+    await user.save(); // Save the user with verification code
+
+    const { success, message } = await sendVerificationCode(
       verificationMethod,
       verificationCode,
       name,
       email,
-      phone,
-      res
+      phone
     );
+
+    if (!success) {
+      return next(new createError(message, 500));
+    }
+
+    res.status(200).json({
+      success: true,
+      message: `User registered successfully. ${message}`,
+    });
   } catch (error) {
     next(error);
   }
@@ -82,43 +87,42 @@ async function sendVerificationCode(
   verificationCode,
   name,
   email,
-  phone,
-  res
+  phone
 ) {
   try {
     if (verificationMethod === "email") {
       const message = generateEmailTemplate(verificationCode);
-      sendEmail({ email, subject: "Your Verification Code", message });
-      res.status(200).json({
+      await sendEmail({ email, subject: "Your Verification Code", message });
+
+      return {
         success: true,
-        message: `Verification email successfully sent to ${name}`,
-      });
+        message: `Verification email successfully sent to ${name}.`,
+      };
     } else if (verificationMethod === "phone") {
       const verificationCodeWithSpace = verificationCode
         .toString()
         .split("")
         .join(" ");
+
       await client.calls.create({
         twiml: `<Response><Say>Your verification code is ${verificationCodeWithSpace}. Your verification code is ${verificationCodeWithSpace}.</Say></Response>`,
         from: process.env.TWILIO_PHONE_NUMBER,
         to: phone,
       });
-      res.status(200).json({
-        success: true,
-        message: `OTP sent.`,
-      });
+
+      return { success: true, message: "OTP sent successfully via phone." };
     } else {
-      return res.status(500).json({
+      return {
         success: false,
         message: "Invalid verification method.",
-      });
+      };
     }
   } catch (error) {
-    console.log(error);
-    return res.status(500).json({
+    console.error("Error in sendVerificationCode:", error);
+    return {
       success: false,
-      message: "Verification code failed to send.",
-    });
+      message: "Failed to send verification code.",
+    };
   }
 }
 

@@ -14,7 +14,9 @@ const handle = app.getRequestHandler();
 config({ path: ".env.local" });
 
 const PORT = process.env.PORT || 4000;
-app.prepare().then(() => {
+app.prepare().then(async () => {
+  await connectDB();
+
   // middleware
   const server = express();
   server.use(express.json());
@@ -28,8 +30,6 @@ app.prepare().then(() => {
       credentials: true,
     })
   );
-
-  connectDB();
 
   // custom route
   server.get("/api/custom", (req, res) => {
