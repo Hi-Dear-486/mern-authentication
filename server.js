@@ -5,6 +5,7 @@ import cors from "cors";
 import connectDB from "./app/api/db/conection.js";
 import { errorMiddleware } from "./app/middlewares/authMiddleware.js";
 import cookieParser from "cookie-parser";
+import userRoutes from "./app/routes/user/userRoutes.js";
 
 const dev = process.env.NODE_ENV !== "production";
 const app = next({ dev });
@@ -12,12 +13,13 @@ const handle = app.getRequestHandler();
 
 config({ path: ".env.local" });
 
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 4000;
 app.prepare().then(() => {
   // middleware
   const server = express();
   server.use(express.json());
   server.use(cookieParser());
+  server.use("/api/user", userRoutes);
 
   server.use(
     cors({
@@ -38,6 +40,7 @@ app.prepare().then(() => {
   server.all("*", (req, res) => handle(req, res));
 
   server.use(errorMiddleware);
+
   server.listen(PORT, (err) => {
     if (err) throw err;
     console.log(`Ready on http://localhost:${PORT}`);

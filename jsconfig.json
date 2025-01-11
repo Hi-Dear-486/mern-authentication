@@ -1,7 +1,8 @@
 {
   "compilerOptions": {
+    "baseUrl": ".", // Root directory for resolving relative paths
     "paths": {
-      "@/*": ["./*"]
+      "*": ["*"]
     }
   }
 }

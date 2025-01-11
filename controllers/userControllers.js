@@ -1,7 +1,9 @@
-import { createError } from "@/app/middlewares/authMiddleware.js";
-import { User } from "@/models/userModel";
-import { sendToken } from "@/utils/sendToken";
-import { Twilio } from "twilio";
+import Twilio from "twilio";
+import { createError } from "../app/middlewares/authMiddleware.js";
+import { User } from "../models/userModel.js";
+import { sendToken } from "../utils/sendToken.js";
+import { catchAsyncError } from "../app/middlewares/catchAsyncError.js";
+import { sendEmail } from "../utils/sendEmail.js";
 
 const client = Twilio(process.env.TWILIO_SID, process.env.TWILIO_AUTH_TOKEN);
 export const register = catchAsyncError(async (req, res, next) => {
