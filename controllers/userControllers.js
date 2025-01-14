@@ -11,7 +11,7 @@ export const register = catchAsyncError(async (req, res, next) => {
     const { name, email, phone, password, verificationMethod } = req.body;
 
     if (!name || !email || !phone || !password || !verificationMethod) {
-      return next(new createError("All fields are required.", 400));
+      return next(createError("All fields are required.", 400));
     }
 
     function validatePhoneNumber(phone) {
@@ -20,7 +20,7 @@ export const register = catchAsyncError(async (req, res, next) => {
     }
 
     if (!validatePhoneNumber(phone)) {
-      return next(new createError("Invalid phone number.", 400));
+      return next(createError("Invalid phone number.", 400));
     }
 
     const existingUser = await User.findOne({
@@ -31,7 +31,7 @@ export const register = catchAsyncError(async (req, res, next) => {
     });
 
     if (existingUser) {
-      return next(new createError("Phone or Email is already used.", 400));
+      return next(createError("Phone or Email is already used.", 400));
     }
 
     const registerationAttemptsByUser = await User.find({
@@ -43,7 +43,7 @@ export const register = catchAsyncError(async (req, res, next) => {
 
     if (registerationAttemptsByUser.length > 3) {
       return next(
-        new createError(
+        createError(
           "You have exceeded the maximum number of attempts (3). Please try again after an hour.",
           400
         )
@@ -53,7 +53,7 @@ export const register = catchAsyncError(async (req, res, next) => {
     const userData = { name, email, phone, password };
     const user = await User.create(userData);
     if (!user) {
-      return next(new createError("Failed to create user", 500));
+      return next(createError("Failed to create user", 500));
     }
 
     console.log("🚀 ~ register ~ user:", user);
@@ -70,7 +70,7 @@ export const register = catchAsyncError(async (req, res, next) => {
     );
 
     if (!success) {
-      return next(new createError(message, 500));
+      return next(createError(message, 500));
     }
 
     res.status(200).json({
@@ -147,6 +147,80 @@ function generateEmailTemplate(verificationCode) {
     `;
 }
 
+// export const verifyOTP = catchAsyncError(async (req, res, next) => {
+//   const { email, otp, phone } = req.body;
+
+//   function validatePhoneNumber(phone) {
+//     const phoneRegex = /^\+923\d{9}$/;
+//     return phoneRegex.test(phone);
+//   }
+
+//   if (!validatePhoneNumber(phone)) {
+//     return next(createError("Invalid phone number.", 400));
+//   }
+
+//   try {
+//     const userAllEntries = await User.find({
+//       $or: [
+//         {
+//           email,
+//           accountVerified: false,
+//         },
+//         {
+//           phone,
+//           accountVerified: false,
+//         },
+//       ],
+//     }).sort({ createdAt: -1 });
+
+//     if (!userAllEntries) {
+//       return next(createError("User not found.", 404));
+//     }
+
+//     let user;
+
+//     if (userAllEntries.length > 1) {
+//       user = userAllEntries[0];
+
+//       await User.deleteMany({
+//         _id: { $ne: user._id },
+//         $or: [
+//           { phone, accountVerified: false },
+//           { email, accountVerified: false },
+//         ],
+//       });
+//     } else {
+//       user = userAllEntries[0];
+//     }
+
+//     if (user.verificationCode !== Number(otp)) {
+//       return next(createError("Invalid OTP.", 400));
+//     }
+
+//     const currentTime = Date.now();
+
+//     const verificationCodeExpire = new Date(
+//       user.verificationCodeExpire
+//     ).getTime();
+
+//     if (currentTime > verificationCodeExpire) {
+//       return next(createError("OTP Expired.", 400));
+//     }
+
+//     user.accountVerified = true;
+//     user.verificationCode = null;
+//     user.verificationCodeExpire = null;
+
+//     await user.save({ validateModifiedOnly: true });
+
+//     sendToken(user, 200, "Account Verified.", res);
+//   } catch (error) {
+//     console.error("Error during OTP verification:", error);
+
+//     return next(createError("Internal Server Error.", 500));
+//   }
+// });
+
 export const verifyOTP = catchAsyncError(async (req, res, next) => {
   const { email, otp, phone } = req.body;
 
@@ -156,7 +230,7 @@ export const verifyOTP = catchAsyncError(async (req, res, next) => {
   }
 
   if (!validatePhoneNumber(phone)) {
-    return next(new createError("Invalid phone number.", 400));
+    return next(createError("Invalid phone number.", 400));
   }
 
   try {
@@ -173,68 +247,54 @@ export const verifyOTP = catchAsyncError(async (req, res, next) => {
       ],
     }).sort({ createdAt: -1 });
 
-    if (!userAllEntries) {
-      return next(new createError("User not found.", 404));
+    if (userAllEntries.length === 0) {
+      return next(createError("User not found.", 404));
     }
 
-    let user;
-
-    if (userAllEntries.length > 1) {
-      user = userAllEntries[0];
-
-      await User.deleteMany({
-        _id: { $ne: user._id },
-        $or: [
-          { phone, accountVerified: false },
-          { email, accountVerified: false },
-        ],
-      });
-    } else {
-      user = userAllEntries[0];
-    }
+    let user = userAllEntries[0];
 
     if (user.verificationCode !== Number(otp)) {
-      return next(new createError("Invalid OTP.", 400));
+      return next(createError("Invalid OTP.", 400));
     }
 
     const currentTime = Date.now();
-
     const verificationCodeExpire = new Date(
       user.verificationCodeExpire
     ).getTime();
-    console.log(currentTime);
-    console.log(verificationCodeExpire);
+
     if (currentTime > verificationCodeExpire) {
-      return next(new createError("OTP Expired.", 400));
+      return next(createError("OTP Expired.", 400));
     }
 
     user.accountVerified = true;
     user.verificationCode = null;
     user.verificationCodeExpire = null;
+
     await user.save({ validateModifiedOnly: true });
 
     sendToken(user, 200, "Account Verified.", res);
   } catch (error) {
-    return next(new createError("Internal Server Error.", 500));
+    console.error("Error during OTP verification:", error);
+    return next(createError("Internal Server Error.", 500));
   }
 });
 
 export const login = catchAsyncError(async (req, res, next) => {
   const { email, password } = req.body;
   if (!email || !password) {
-    return next(new createError("Email and password are required.", 400));
+    return next(createError("Email and password are required.", 400));
   }
   const user = await User.findOne({ email, accountVerified: true }).select(
     "+password"
   );
 
   if (!user) {
-    return next(new createError("Invalid email or password.", 400));
+    return next(createError("Invalid email or password.", 400));
   }
 
   const isPasswordMatched = await user.comparePassword(password);
   if (!isPasswordMatched) {
-    return next(new createError("Invalid email or password.", 400));
+    return next(createError("Invalid email or password.", 400));
   }
   sendToken(user, 200, "User logged in successfully.", res);
 });

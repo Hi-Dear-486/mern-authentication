@@ -1,6 +1,8 @@
 import mongoose from "mongoose";
 import bcrypt from "bcrypt";
-
+import jwt from "jsonwebtoken";
+import { config } from "dotenv";
+config();
 const userSchema = new mongoose.Schema({
   name: String,
   email: String,
@@ -10,7 +12,7 @@ const userSchema = new mongoose.Schema({
     maxLength: [32, "Password cannot have more than 32 characters."],
   },
   phone: String,
-  accoutVerified: { type: Boolean, default: false },
+  accountVerified: { type: Boolean, default: false },
   verificationCode: Number,
   verificationCodeExpire: Date,
   resetPasswordToken: String,
@@ -46,5 +48,11 @@ userSchema.methods.generateVerificationCode = function () {
   this.verificationCodeExpire = Date.now() + 10 * 60 * 1000;
 
   return verificationCode;
+};
+
+userSchema.methods.generateToken = function () {
+  return jwt.sign({ id: this._id }, process.env.JWT_SCREATE_KEY, {
+    expiresIn: process.env.JWT_EXPIRE,
+  });
 };
 export const User = mongoose.model("User", userSchema);
