@@ -3,7 +3,7 @@ import express from "express";
 import { config } from "dotenv";
 import cors from "cors";
 import connectDB from "./app/api/db/conection.js";
-import { errorMiddleware } from "./app/middlewares/authMiddleware.js";
+import { errorMiddleware } from "./app/middlewares/error.js";
 import cookieParser from "cookie-parser";
 import userRoutes from "./app/routes/user/userRoutes.js";
 

@@ -1,5 +1,5 @@
 import Twilio from "twilio";
-import { createError } from "../app/middlewares/authMiddleware.js";
+import { createError } from "../app/middlewares/error.js";
 import { User } from "../models/userModel.js";
 import { sendToken } from "../utils/sendToken.js";
 import { catchAsyncError } from "../app/middlewares/catchAsyncError.js";
@@ -318,4 +318,39 @@ export const getUser = catchAsyncError(async (req, res, next) => {
     success: true,
     user,
   });
+});
+
+export const forgetPassowrd = catchAsyncError(async (req, res, next) => {
+  const user = await User.findOne({
+    email: req.body.email,
+    accountVerified: true,
+  });
+  if (!user) {
+    return next(createError("User not found.", 404));
+  }
+  const resetToken = user.generateResetPasswordToken();
+  await user.save({ validateBeforeSave: false });
+  const resetPasswordUrl = `${process.env.FRONTEND_URL}/password/reset/${resetToken}`;
+  const message = `Your Reset Password Token is:- \n\n ${resetPasswordUrl} \n\n If you have not requested this email then please ignore it`;
+
+  try {
+    sendEmail({
+      email: user.email,
+      subject: "MERN AUTHENTICATION APP RESET PASSWORD",
+      message,
+    });
+    res.status(200).json({
+      success: true,
+      message: `Email sent to ${user.email} successfully`,
+    });
+  } catch (error) {
+    user.resetPasswordToken = undefined;
+    user.resetPasswordExpire = undefined;
+    await user.save({ validateBeforeSave: false });
+    return next(
+      createError(
+        error.message ? error.message : "cannot send reset password token"
+      )
+    );
+  }
 });
